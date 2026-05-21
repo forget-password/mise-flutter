@@ -43,9 +43,9 @@ install() {
 
   local jsonResponseLength=$(echo "${jsonResponse}" | "${JQ_BIN}" -s 'length')
   local filePath=$(echo "${jsonResponse}" | "${JQ_BIN}" -r '.archive' | head -n 1)
-  if [ "$(uname -s)" == "Darwin" ] && [ ${jsonResponseLength} -gt 1 ]; then
+  if [ ${jsonResponseLength} -gt 1 ]; then
     local arch="x64"
-    if [ "$(uname -m)" == "arm64" ]; then
+    if [ "$(uname -m)" == "arm64" ] || [ "$(uname -m)" == "aarch64" ]; then
       arch="arm64"
     fi
 
@@ -55,11 +55,33 @@ install() {
     fi
     filePath=$(echo "${jsonResponse}" | "${JQ_BIN}" -r --arg ARCH "${arch}" --arg CHANNEL "${channel}" \
       '. | select(.dart_sdk_arch == $ARCH and .channel == $CHANNEL) | .archive' | head -n 1 )
+    if [ -z "${filePath}" ] && [ "${arch}" == "arm64" ]; then
+      filePath=$(echo "${jsonResponse}" | "${JQ_BIN}" -r --arg ARCH "x64" --arg CHANNEL "${channel}" \
+        '. | select(.dart_sdk_arch == $ARCH and .channel == $CHANNEL) | .archive' | head -n 1 )
+    fi
   fi
 
   if [ -z "${filePath}" ]; then
-    echo "Cannot find the download url for the version: ${ASDF_INSTALL_VERSION}"
-    exit 1
+    local os_name="macos"
+    local ext="zip"
+    if [ "$(uname -s)" == "Linux" ]; then
+      os_name="linux"
+      ext="tar.xz"
+    fi
+
+    local arch_suffix=""
+    if [ "$(uname -m)" == "arm64" ] && [ "${os_name}" == "macos" ]; then
+      arch_suffix="arm64_"
+    fi
+
+    local pure_version=$(echo "${ASDF_INSTALL_VERSION}" | sed -E 's/-(stable|beta|dev)//')
+    local channel="stable"
+    if [[ "${ASDF_INSTALL_VERSION}" =~ (stable|beta|dev) ]]; then
+      channel="${BASH_REMATCH[1]}"
+    fi
+
+    filePath="${channel}/${os_name}/flutter_${os_name}_${arch_suffix}${pure_version}-${channel}.${ext}"
+    echo "Warning: Version ${ASDF_INSTALL_VERSION} not found in releases JSON. Predicting archive path: ${filePath}" >&2
   fi
 
   local url="${urlPrefix}/${filePath}"

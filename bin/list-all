@@ -6,14 +6,19 @@ source "${currentDir}/jq-downloader"
 source "${currentDir}/utils.sh"
 
 list_all() {
-
   local versionListUrl="${FLUTTER_STORAGE_BASE_URL}/flutter_infra_release/releases/releases_macos.json"
 
   if [ "$(uname -s)" == "Linux" ]; then
     versionListUrl="${FLUTTER_STORAGE_BASE_URL}/flutter_infra_release/releases/releases_linux.json"
   fi
 
-  echo $(curl -sL "${versionListUrl}" | "${JQ_BIN}" -r '.releases[].version |= gsub("^v"; "") | .releases | map(.version + "-" + .channel) | reverse | join(" ")')
+  local json_versions=""
+  json_versions=$(curl -sL "${versionListUrl}" | "${JQ_BIN}" -r '.releases[].version |= gsub("^v"; "") | .releases | map(.version + "-" + .channel) | reverse | join(" ")' 2>/dev/null)
+
+  local git_versions=""
+  git_versions=$(git ls-remote --tags --refs https://github.com/flutter/flutter.git 2>/dev/null | awk -F'/' '{print $3}' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//' | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+)$/\1-stable/' | tr '\n' ' ')
+
+  echo $(echo "${json_versions} ${git_versions}" | tr ' ' '\n' | awk '!x[$0]++' | sort -V | tr '\n' ' ')
 }
 
 download_jq_if_not_exists
