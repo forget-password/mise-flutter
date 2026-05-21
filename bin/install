@@ -43,7 +43,7 @@ install() {
 
   local jsonResponseLength=$(echo "${jsonResponse}" | "${JQ_BIN}" -s 'length')
   local filePath=$(echo "${jsonResponse}" | "${JQ_BIN}" -r '.archive' | head -n 1)
-  if [ ${jsonResponseLength} -gt 1 ]; then
+  if [ "${jsonResponseLength}" -gt 1 ]; then
     local arch="x64"
     if [ "$(uname -m)" == "arm64" ] || [ "$(uname -m)" == "aarch64" ]; then
       arch="arm64"
@@ -70,7 +70,7 @@ install() {
     fi
 
     local arch_suffix=""
-    if [ "$(uname -m)" == "arm64" ] && [ "${os_name}" == "macos" ]; then
+    if [[ "$(uname -m)" =~ ^(arm64|aarch64)$ ]]; then
       arch_suffix="arm64_"
     fi
 
